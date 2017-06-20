@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <title>Combine BIKING and Subway Directions</title>
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 100%;
+        width: 70%
+      }
+      .controls {
+        margin-top: 10px;
+        border: 1px solid transparent;
+        border-radius: 2px 0 0 2px;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        height: 32px;
+        outline: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      }
+      #inputs {
+        /*position: absolute;
+        top: 0px;
+        left: 750px;*/
+        z-index: 5;
+        /*background-color: #fff;*/
+        padding: 5px;
+        /*border: 1px solid #999;*/
+        text-align: center;
+        font-family: 'Roboto','sans-serif';
+        line-height: 10px;
+        padding-left: 10px;
+      }
+      #right-panel {
+        float: right;
+        width: 28%;
+        padding-left: 2%;
+      }
+      #but {
+      /*background-color: rgb(0, 0, 189);*/
+       /*border: none;*/
+       /*color: white;*/
+       padding: 15px 15px;
+       text-align: center;
+       text-decoration: none;
+       display: inline-block;
+       font-size: 12px;}
+
+      #box1 {
+        background-color: #fff;
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+        margin-left: 12px;
+        padding: 0 11px 0 13px;
+        text-overflow: ellipsis;
+        width: 300px;
+      }
+      #box2 {
+        background-color: #fff;
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+        margin-left: 12px;
+        padding: 0 11px 0 13px;
+        text-overflow: ellipsis;
+        width: 300px;
+      }
+
+      #box1:focus {
+        border-color: #4d90fe;
+      }
+
+      #box2:focus {
+        border-color: #4d90fe;
+      }
+/*
+      #type-selector {
+        color: #fff;
+        background-color: #4d90fe;
+        padding: 5px 11px 0px 11px;
+      }
+
+      #type-selector label {
+        font-family: Roboto;
+        font-size: 13px;
+        font-weight: 300;
+      }*/
+      #target {
+        width: 345px;
+      }
+      #paneltxt{
+        font-family: 'Roboto','sans-serif';
+        line-height: 30px;
+        padding-left: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id=right-panel>
+    <div id=inputs>
+    <button id="but" type="button" onclick="test()">Map me!</button>
+    </div>
+    <div id="paneltxt">
+      <h3>Bike to the Subway!</h3>
+        The fastest way to get between two points in NYC is often to <span style="color:green">cycle</span> to a subway station and then take the subway the rest of the way. Enter two locations and click the <b>Map me!</b> button to search for the fastest multimodal commute.
+    </div>
+  </div>
+    <input id="box1" class="controls" type="text" placeholder="Origin">
+    <input id="box2" class="controls" type="text" placeholder="Destination">
+    <div id="map"></div>
+    <script>
+
+    var place1 = []
+    var place2 = []
+
+    var reset = function(){
+      location.reload()
+          }
+
+    var test = function(){
+        t1 = document.getElementById('box1').value
+        t2 = document.getElementById('box2').value
+        if (t1 == "" || t2 == "") {return}
+        console.log('Asking for directions from ', t1, ' to ' , t2, '...')
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+            if (xhttp.readyState == 4 && xhttp.status == 200) {
+              response = JSON.parse(xhttp.responseText)
+                console.log('got ', response);
+
+                var time_to_beat = response['time_to_beat'].toFixed(1)
+
+                var bike_details = response['bike_details']
+                var bikeallwaytime = bike_details['time'].toFixed(1)
+                var bikeallwaypline = bike_details['pline']
+
+                var mixed_modal_route = response['mixed_modal_route']
+                var mid_sub_name = mixed_modal_route['mid_sub_name']
+                var bike_leg_time = mixed_modal_route['bike_leg']['time'].toFixed(1)
+                var comb_bike_pline = mixed_modal_route['bike_leg']['pline']
+
+                var subway_leg_time = mixed_modal_route['subway_leg']['time'].toFixed(1)
+                var subwaylegs = mixed_modal_route['subway_leg']['legs']
+                var fastestcombotime = (parseInt(bike_leg_time) + parseInt(subway_leg_time)).toFixed(1)
+
+
+                var subways = []
+                for (i=0; i<subwaylegs.length; i++){
+                  if (subwaylegs[i]['type'] == "subway"){
+                    subways.push(subwaylegs[i])
+                  }
+                }
+                if (subways.length > 0){
+                  var first_line = subways[0]['line']
+                  var no_subs = false}
+                else {
+                  var no_subs = true
+                }
+
+                var map = new google.maps.Map(document.getElementById('map'), {
+                  center: midloc,
+                  zoom: 13,
+                  mapTypeId: google.maps.MapTypeId.ROADMAP
+                });
+
+                var lineSymbol = {
+                    path: 'M 0,-1 0,1',
+                    strokeOpacity: 1,
+                    scale: 4
+                  };
+
+                var allbikeline = new google.maps.Polyline({
+                  path: bikeallwaypline,
+                  geodesic: true,
+                  strokeOpacity: 0,
+                  icons: [{
+                    icon: lineSymbol,
+                    offset: '0',
+                    repeat: '20px'
+                  }],
+                  strokeColor: 'green',
+                  strokeWeight: 2
+                });
+                allbikeline.setMap(map);
+console.log(no_subs);
+
+                if (no_subs == false){
+                  var bikingline = new google.maps.Polyline({
+                    path: comb_bike_pline,
+                    geodesic: true,
+                    strokeColor: 'green',
+                    strokeOpacity: 1.0,
+                    strokeWeight: 4
+                  });
+                  bikingline.setMap(map);
+
+                  for (i=0; i<subwaylegs.length; i++){
+                    var leg = subwaylegs[i]
+                    var color = ""
+                    if (leg['type'] == "subway") {
+                      color = leg['color']
+                    }
+                    else {
+                      color = 'grey'
+                    }
+                    var line = new google.maps.Polyline({
+                      path: leg['pline'],
+                      geodesic: true,
+                      strokeColor: color,
+                      strokeOpacity: 1.0,
+                      strokeWeight:4
+                    });
+                    line.setMap(map);
+                  }}
+
+
+                console.log('put the polylines on map');
+
+                var button = document.getElementById('but');
+                button.innerHTML = 'Reset!';
+                button.onclick = reset;
+
+                var outputDiv = document.getElementById('paneltxt');
+
+                if (no_subs == true) {
+                outputDiv.innerHTML = 'Google\'s standard directions take <b>' + time_to_beat + " mins. </b> But you should totally " +
+                "<span style='color:green'> cycle! </span> It'd only take <b>" + bikeallwaytime + " mins</b>, and by the time you cycle to a subway" +
+                "you're better off just biking the whole way." +
+                '<b> <span style="color:green">Dashed green line: </b></span> Biking route. <p> Click <b> Reset!</b> to start again.'
+                }
+
+                else if (fastestcombotime>time_to_beat){
+                  outputDiv.innerHTML = 'The fastest commute from ' + t1 + 'to ' + t2 + ', surprisingly, ' +
+                  "doesn't involve a bike - the subway trip takes " + time_to_beat + " mins. <span style='color:green'>  Biking</b></span>" +
+                  ' the whole way would take <b>' + bikeallwaytime + ' mins</b>. Alternatively, you could (1) <span style="color:green">cycle </b></span>' +
+                  'to the <b>' + mid_sub_name + '</b> stop <i>(' + bike_leg_time + ' min)</i>,' +
+                  ' and then (2) take the <b>' + first_line + '</b> line. <i>(' + subway_leg_time + ' min)</i>. <b> Total time: ' + fastestcombotime + ' min. </b>' +
+                  '<p> <b><u> <span style="color:green">Solin green line</u></b></span>: bike route to subway.<p>' +
+                   '<b> <span style="color:green">Dashed green line: </b></span> route for biking all the way.<p> Click <b> Reset!</b> to start again.'
+                }
+
+                else if (bikeallwaytime < fastestcombotime) {
+                  outputDiv.innerHTML = 'The fastest commute from <i> ' + t1 + ' </i> to <i> ' + t2 +
+                   '</i> is to <b> <span style="color:green">cycle</b></span>, which takes <b>' + bikeallwaytime + ' mins</b>.' +
+                    ' But you could also (1) <b>cycle</b> to ' +
+                   'the <b>' + mid_sub_name + '</b> stop <i>(' + bike_leg_time + ' min)</i>,' +
+                   ' and then (2) take the <b>' + first_line + '</b> line. <i>(' + subway_leg_time + ' min)</i>. <b> Total time: ' + fastestcombotime + ' min. </b>' +
+                   '<p>Google\'s standard transit directions take <b>' + time_to_beat + '</b> mins.' +
+                   '<p> <b><u> <span style="color:green">Solin green line</u></b></span>: bike route to subway.<p>' +
+                    '<b> <span style="color:green">Dashed green line: </b></span> route for biking all the way.<p> Click <b> Reset!</b> to start again.'
+
+                }
+                else if (bikeallwaytime > fastestcombotime){
+                  outputDiv.innerHTML = 'The fastest commute from <i> ' + t1 + ' </i> to <i> ' + t2 +
+                   '</i> is to (1) <b>cycle</b> to the <b>' + mid_sub_name + '</b> stop <i>(' + bike_leg_time + ' mins)</i>,' +
+                  ' and then (2) take the <b>' + first_line + '</b> line. <i>(' + subway_leg_time + ' mins)</i>. <b> Total time: ' + fastestcombotime + ' mins. </b>' +
+                   'This is faster than biking the whole way, which would take <b>' + bikeallwaytime + ' mins.</b> <p>Google\'s standard transit directions take <b>' + time_to_beat + ' mins.</b>'+
+                   '<p> <b><u> <span style="color:green">Solin green line</u></b></span>: bike route to subway.<p>' +
+                    '<b> <span style="color:green">Dashed green line: </b></span> route for biking all the way.<p> Click <b> Reset!</b> to start again.'
+                   }
+
+              console.log('changed innerHTML');
+
+
+        }}
+        place1split = (String(place1)).split(',')
+        place1lat = place1split[0]
+        place1lng = place1split[1]
+        place1lats = place1lat.slice(1, place1lat.length)
+        place1lngs = place1lng.slice(1,place1lng.length -1)
+
+        place2split = (String(place2)).split(',')
+        place2lat = place2split[0]
+        place2lng = place2split[1]
+        place2lats = place2lat.slice(1, place2lat.length)
+        place2lngs = place2lng.slice(1,place2lng.length -1)
+
+        place1lst = [place1lats, place1lngs]
+        place2lst = [place2lats, place2lngs]
+        place1str = place1lats + ',' + place1lngs
+        place2str = place2lats + ',' + place2lngs
+
+
+        xhttp.open("POST", "https://transitbike.herokuapp.com/route", true);
+        // xhttp.open("POST", "http://0.0.0.0:5000/route", true)
+        xhttp.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
+        text = 'str1=' + place1str + '&str2=' + place2str
+        xhttp.send(text);
+
+
+        var outputDiv = document.getElementById('paneltxt');
+            outputDiv.innerHTML = 'Searching for routes from ' + t1 + ' to ' + t2 + '...'
+
+      }
+
+      var rec = [40.7207656, -74.0011047]
+      var home = [40.6767385, -73.97990879999999]
+      var mid = [(rec[0]+home[0])/2, (rec[1]+home[1])/2]
+      var midloc = {lat: mid[0], lng: mid[1]}
+
+
+      function initMap() {
+        var map = new google.maps.Map(document.getElementById('map'), {
+          center: midloc,
+          zoom: 12,
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        });
+
+        // Create the search box and link it to the UI element.
+        var input1 = document.getElementById('box1');
+        var searchBox1 = new google.maps.places.SearchBox(input1);
+        map.controls[google.maps.ControlPosition.TOP_LEFT].push(input1);
+
+        var input2 = document.getElementById('box2');
+        var searchBox2 = new google.maps.places.SearchBox(input2);
+        map.controls[google.maps.ControlPosition.TOP_LEFT].push(input2);
+
+        var bicon = 'http://spokesgrp.com/wp-content/uploads/2015/02/spokes-bike-logo-circle1.png'
+
+        // Bias the SearchBox results towards current map's viewport.
+        map.addListener('bounds_changed', function() {
+          searchBox1.setBounds(map.getBounds());
+          searchBox2.setBounds(map.getBounds());
+        });
+
+        var markers = [];
+        // Listen for the event fired when the user selects a prediction and retrieve
+        // more details for that place.
+        searchBox1.addListener('places_changed', function() {
+          var places = searchBox1.getPlaces();
+          if (places.length == 0) {
+            return;
+          }
+
+          // Clear out the old markers.
+          markers.forEach(function(marker) {
+            marker.setMap(null);
+          });
+          markers = [];
+
+          // For each place, get the icon, name and location.
+          var bounds = new google.maps.LatLngBounds();
+          places.forEach(function(place) {
+            var icon = {
+              url: bicon,
+              size: new google.maps.Size(71, 71),
+              origin: new google.maps.Point(0, 0),
+              anchor: new google.maps.Point(17, 34),
+              scaledSize: new google.maps.Size(30, 30)
+            };
+
+            // Create a marker for each place.
+            markers.push(new google.maps.Marker({
+              map: map,
+              icon: icon,
+              title: place.name,
+              position: place.geometry.location
+            }));
+
+            place1 =  place.geometry.location;
+
+            if (place.geometry.viewport) {
+              // Only geocodes have viewport.
+              bounds.union(place.geometry.viewport);
+            } else {
+              bounds.extend(place.geometry.location);
+            }
+          });
+          // map.fitBounds(bounds);
+        });
+
+        searchBox2.addListener('places_changed', function() {
+          var places = searchBox2.getPlaces();
+
+          if (places.length == 0) {
+            return;
+          }
+
+          // Clear out the old markers.
+          // markers.forEach(function(marker) {
+          //   marker.setMap(null);
+          // });
+          // markers = [];
+
+          // For each place, get the icon, name and location.
+          var bounds = new google.maps.LatLngBounds();
+          places.forEach(function(place) {
+            var icon = {
+              url: bicon,
+              size: new google.maps.Size(71, 71),
+              origin: new google.maps.Point(0, 0),
+              anchor: new google.maps.Point(17, 34),
+              scaledSize: new google.maps.Size(30, 30)
+            };
+
+            // Create a marker for each place.
+            markers.push(new google.maps.Marker({
+              map: map,
+              icon: icon,
+              title: place.name,
+              position: place.geometry.location
+            }));
+
+            place2 = place.geometry.location
+
+            if (place.geometry.viewport) {
+              // Only geocodes have viewport.
+              bounds.union(place.geometry.viewport);
+            } else {
+              bounds.extend(place.geometry.location);
+            }
+          });
+        });
+
+      }
+
+
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDUh4yyTV0Yioe-2-IFE5xU4jF4KLlwEFI&libraries=places&callback=initMap"
+         async defer></script>
+  </body>
+</html>
